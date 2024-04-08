@@ -1,0 +1,81 @@
+Для выполнения указанных задач с использованием Selenium WebDriver, PyTest, и сохранением веб-локаторов в отдельном yaml-файле, вам потребуется выполнить следующие шаги. В данном примере я буду использовать Python, PyTest, Selenium WebDriver, и yaml для реализации тестов.
+
+Шаг 1: Установка необходимых библиотек
+Убедитесь, что у вас установлены все необходимые библиотеки. Если нет, установите их с помощью pip:
+
+pip install selenium pytest pyyaml webdriver_manager
+Шаг 2: Создание yaml-файла с локаторами
+Создайте файл locators.yaml и добавьте в него локаторы для элементов, с которыми вы будете работать:
+
+xpath:
+ LOCATOR_LOGIN_FIELD: //*[@id="login"]/div[1]/label/input
+ LOCATOR_PASS_FIELD: //*[@id="login"]/div[2]/label/input
+ LOCATOR_ABOUT_LINK: //*[@id="app"]/main/nav/ul/li[1]/a
+ LOCATOR_ABOUT_PAGE_HEADER: //*[@id="app"]/main/div/div/h1
+Шаг 3: Создание класса Page Object
+Создайте класс BasePage, который будет содержать общие методы для работы с веб-страницей:
+
+from selenium.webdriver.support.wait import WebDriverWait
+from selenium.webdriver.support import expected_conditions as EC
+from selenium.webdriver.common.by import By
+import yaml
+import logging
+
+class BasePage:
+    def __init__(self, driver):
+        self.driver = driver
+        self.base_url = "https://test-stand.gb.ru"
+        self.load_locators()
+
+    def load_locators(self):
+        with open("locators.yaml", "r", encoding="utf-8") as file:
+            self.locators = yaml.safe_load(file)
+
+    def find_element(self, locator_name):
+        locator = self.locators["xpath"][locator_name]
+        return WebDriverWait(self.driver, 10).until(EC.presence_of_element_located((By.XPATH, locator)))
+
+    def click_element(self, locator_name):
+        element = self.find_element(locator_name)
+        element.click()
+
+    def get_element_text(self, locator_name):
+        element = self.find_element(locator_name)
+        return element.text
+
+    def get_element_font_size(self, locator_name):
+        element = self.find_element(locator_name)
+        return element.value_of_css_property("font-size")
+Шаг 4: Создание тестовых сценариев
+Создайте файл test_site.py с тестовыми сценариями:
+
+import pytest
+from selenium import webdriver
+from selenium.webdriver.chrome.service import Service
+from webdriver_manager.chrome import ChromeDriverManager
+from base_page import BasePage
+
+@pytest.fixture(scope="session")
+def browser():
+    service = Service(executable_path=ChromeDriverManager().install())
+    driver = webdriver.Chrome(service=service)
+    yield driver
+    driver.quit()
+
+def test_login(browser):
+    page = BasePage(browser)
+    page.driver.get(page.base_url)
+    page.find_element("LOCATOR_LOGIN_FIELD").send_keys("your_login")
+    page.find_element("LOCATOR_PASS_FIELD").send_keys("your_password")
+    # Добавьте здесь код для входа в систему
+
+def test_about_page(browser):
+    page = BasePage(browser)
+    page.driver.get(page.base_url)
+    page.click_element("LOCATOR_ABOUT_LINK")
+    assert page.get_element_text("LOCATOR_ABOUT_PAGE_HEADER") == "About Page"
+    assert page.get_element_font_size("LOCATOR_ABOUT_PAGE_HEADER") == "32px"
+Шаг 5: Запуск тестов
+Запустите тесты с помощью PyTest:
+
+pytest test_site.py
